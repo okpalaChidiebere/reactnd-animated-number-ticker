@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "reactnd-animated-number-ticker",
+    "slug": "reactnd-animated-number-ticker",
+    "version": "1.0.0",
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  },
+  "name": "reactnd-animated-number-ticker"
+}
