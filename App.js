@@ -1,6 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import Animated, { 
+  useAnimatedStyle, 
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated'
 
 
 //create a number range from 0 to 9
@@ -15,13 +20,6 @@ function getRandom(min, max){
 //determines the offsets for each of the characters that we need to scroll to
 const getPosition = (value, height) => parseInt(value, 10) * height * -1 //FYI: we are multiplying by negative 1 because we want to move numbers upwards to get to the other characters. So our translateY will be negative
 
-//our translate transform style that will be applied to the view that will act as the scroll
-const getTranslateStyle = position => ({
-  transform: [
-    { translateY: position },
-  ],
-})
-
 const NumberText = React.forwardRef((props, ref) => (
   <View ref={ref}>
     <Text style={styles.text}>{props.value}</Text>
@@ -29,12 +27,45 @@ const NumberText = React.forwardRef((props, ref) => (
 ))
 
 const Tick = React.memo(React.forwardRef(({ value, height }, ref) => {
-  const transformStyle = getTranslateStyle(getPosition(value, height)) //eg 7 will be shown in the ticker!
+  const prevValue = React.useRef(value)
+  /**
+   * We dont want our animatedValue to be 0 by default, we want it to be the exact
+   * position at the begining. So the number will be in the correct position we
+   * desires before the user sees it.
+   */
+  const animtion = useSharedValue(getPosition(value, height))
+
+  React.useEffect(() => {
+    /**
+     * Check this link to see his on comparing oldValues and new Values in
+     * useEffect
+     * https://stackoverflow.com/questions/53446020/how-to-compare-oldvalues-and-newvalues-on-react-hooks-useeffect
+     */
+    if (prevValue.current !== value) {
+      //trigger the animation if our value is updated
+      animtion.value = withTiming(
+        getPosition(value, height),
+        { duration: 500}
+      )
+    }
+    return () => { 
+      prevValue.current = value
+    }
+  }, [value])
+  
+  //our translate transform style that will be applied to the view that will act as the scroll
+  const transformStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateY: animtion.value },
+      ],
+    }
+  })
   return (
     /** this view acts as the scroll */
-    <View style={transformStyle}>
+    <Animated.View style={transformStyle}>
       {numberRange.map(v => <NumberText key={v} ref={ref} value={value}/>)}
-    </View>
+    </Animated.View>
   )
 }), (prevProps, nextProps) => {
   /**
@@ -66,8 +97,8 @@ export default function App() {
     measured: false,
     height: 0,
     value1: 0,
-    value2: 1,
-    value3: 9,
+    value2: 0,
+    value3: 0,
   })
 
   const handleLayout = (e) => {
@@ -83,7 +114,7 @@ export default function App() {
   }
 
   //for testing!
-  /*React.useLayoutEffect(
+  React.useLayoutEffect(
     () => {
       const id = setInterval(() => {
         setState(currState => ({
@@ -98,7 +129,7 @@ export default function App() {
       }
     },
     [] // empty dependency array
-  )*/
+  )
 
   const { height, measured } = state
   /**
@@ -113,6 +144,13 @@ export default function App() {
       <StatusBar style="auto" />
       <View style={[styles.row, wrapStyle]} onLayout={handleLayout}>
         <Tick 
+          /**
+           * TIP: another way you can cause a re-render of this component is to 
+           * use the key prop eg:
+           *  key={state.value1}
+           * But it is not necessary for our example because the Tick is rendering
+           * in the exact same location
+           */
           value={state.value1}
           height={height}
           ref={ref}
